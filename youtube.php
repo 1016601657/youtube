@@ -25,11 +25,12 @@ function index($db,$url){
 
     $youtubeInfo = [];
 // 获取所需字段信息
-    $youtubeInfo['ytb_id'] = substr($url,32,24);
-    $url = is_exist_channel($db, $youtube, $url, $youtubeInfo['ytb_id']);
+    $ytb_id = substr($url,32,24);
+    $url = is_exist_channel($db, $youtube, $url, $ytb_id);
     echo '开始抓取频道信息...';
     echo chr(10);
     $youtube->init($url);
+    $youtubeInfo['ytb_id'] = substr($url,32,24);
     $youtubeInfo['username'] = $youtube->get_channel_name();
     $youtubeInfo['subscribers'] = $youtube->get_subscribers();
     $youtubeInfo['views'] = $youtube->get_views();
@@ -43,16 +44,22 @@ function index($db,$url){
     $youtubeInfo['created'] = time();
     $id = $db->insert("ytb_channels", $youtubeInfo);
 
+
     echo '频道信息插入成功 id:'.$id;
     echo chr(10);
+    echo '继续停留此页面获取左侧推荐频道';
+    echo chr(10);
+    $recommendLinks = $youtube->get_recommend_links();
+    echo '推荐频道获取成功';
+    echo chr(10);
 // 获取视频信息
+    echo '进入视频页面 开始获取视频...';
+    echo chr(10);
     $videourl = str_replace('about','videos',$url);
     $youtube->init($videourl);
     $videoLinks = $youtube->get_video_link();
     $videoDetail = [];
     $videotype = [];
-    echo '开始插入视频...';
-    echo chr(10);
     $i = 1;
     foreach($videoLinks as $k){
         $detail = [];
@@ -75,8 +82,9 @@ function index($db,$url){
     $first_key = key($videotype);
     $db->update("ytb_channels", ['type'=>$first_key],['id'=>$id]);
 
+    echo '开始进入推荐频道...';
+    echo chr(10);
     /**获取下一个channel的信息--------------start-----------*/
-    $recommendLinks = $youtube->get_recommend_links();
     foreach($recommendLinks as $v){
         index($db,$v);
     }
@@ -101,7 +109,6 @@ function is_exist_channel($db, $youtube, $url, $ytb_id){
         $new_ytb_id = substr($url,32,24);
         $newYtbInfo = $db->select("ytb_video", "*", ['ytb_id'=>$new_ytb_id]);
         if(!$newYtbInfo){
-            unset($youtube);
             return $newurl;
         }else{
             is_exist_channel($db, $youtube, $newurl, $new_ytb_id);
@@ -109,7 +116,6 @@ function is_exist_channel($db, $youtube, $url, $ytb_id){
     }else{
         echo '此频道尚未抓取过';
         echo chr(10);
-        unset($youtube);
         return $url;
     }
 }
